@@ -70,6 +70,7 @@ import SendToExamination from '@/components/new-request/send-to-examination.vue'
 import ExistingRequestDisplay from '@/components/existing-request/existing-request-display.vue'
 import ExistingRequestEdit from '@/components/existing-request/existing-request-edit.vue'
 import LowerContainer from '@/components/lower-info-area/lower-container.vue'
+import NameCheck from '@/components/new-request/name-check.vue'
 import QuickSearchPending from '@/components/new-request/quick-search-pending.vue'
 import QuickSearchResults from '@/components/new-request/quick-search-results.vue'
 import SearchPending from '@/components/existing-request/search-pending.vue'
@@ -88,6 +89,7 @@ import newRequestModule from '@/store/new-request-module'
     ExistingRequestDisplay,
     ExistingRequestEdit,
     LowerContainer,
+    NameCheck,
     QuickSearchPending,
     QuickSearchResults,
     SearchPending,

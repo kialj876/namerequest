@@ -1,5 +1,5 @@
 <template>
-  <v-col cols="12">
+  <v-col cols="12" class="pt-0">
     <v-text-field :error-messages="message"
                   @input="clearErrors()"
                   @keydown.enter="handleSubmit"
@@ -12,7 +12,7 @@
                   :class="{ 'read-only-mode': isReadOnly }"
                   :disabled="isReadOnly"
                   v-model="searchValue">
-      <template v-slot:append v-if="!isReadOnly">
+      <!-- <template v-slot:append v-if="!isReadOnly">
         <v-tooltip bottom
                    content-class="bottom-tooltip search-tooltip"
                    transition="fade-transition"
@@ -27,7 +27,7 @@
           </template>
           Search Again
         </v-tooltip>
-      </template>
+      </template> -->
     </v-text-field>
   </v-col>
 </template>
@@ -90,7 +90,7 @@ export default class NameInput extends Vue {
     return newReqModule.location && newReqModule.location !== Location.BC &&
       newReqModule.request_action_cd !== RequestCode.MOVE
       ? 'Business\'s full legal name in home jurisdiction'
-      : 'Enter a Name'
+      : 'Enter a Business Name to Check'
   }
   clearErrors () {
     newReqModule.clearErrors()

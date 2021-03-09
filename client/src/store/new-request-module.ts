@@ -47,6 +47,22 @@ import { NrAction, NrState, RollbackActions } from '@/enums'
 import { featureFlags } from '@/plugins/featureFlags'
 import { OK, BAD_REQUEST, NOT_FOUND, SERVICE_UNAVAILABLE } from 'http-status-codes'
 
+type restrictedResponse = {
+  restricted_words_conditions: Array<{
+    cnd_info: Array<{
+      allow_use: string,
+      consent_rrequired: string,
+      id: number,
+      instructions: string,
+      text: string
+    }>,
+    word_info: {
+      id: number,
+      phrase: string
+    }
+  }>
+}
+
 const qs: any = querystring
 const ANALYSIS_TIMEOUT_MS = 3 * 60 * 1000 // 3 minutes
 let source: any
@@ -147,6 +163,7 @@ export class NewRequestModule extends VuexModule {
   assumedNameOriginal: string = ''
   conditionsModalVisible: boolean = false
   exitModalVisible: boolean = false
+  conditionalConflicts: Array<string> = []
   conflictId: string | null = null
   conversionType: string = ''
   conversionTypeAddToSelect: ConversionTypesI | null = null
@@ -196,6 +213,8 @@ export class NewRequestModule extends VuexModule {
   ]
   corpNum: string = ''
   corpSearch: string = ''
+  designation: string = ''
+  designationOptions: string[] = []
   designationIssueTypes = [
     'designation_non_existent',
     'designation_mismatch',
@@ -206,6 +225,14 @@ export class NewRequestModule extends VuexModule {
   doNotAnalyzeEntities: string[] = ['PAR', 'CC', 'CP', 'PA', 'FI', 'XCP', 'SO']
   editMode: boolean = false
   entity_type_cd: string = ''
+  entityDesignations: string[] = [
+    'Corporation',
+    'Incorporated',
+    'INC.',
+    'Limited',
+    'LTD',
+    'Need a list of these'
+  ]
   entityTypeAddToSelect: SelectOptionsI | null = null
   entityTypesBCData: EntityI[] = [
     {
@@ -702,12 +729,14 @@ export class NewRequestModule extends VuexModule {
     }
   ]
   errors: string[] = []
+  exactConflicts: Array<string> = []
   existingRequestSearch: ExistingRequestSearchI = {
     emailAddress: '',
     nrNum: '',
     phoneNumber: ''
   }
   extendedRequestType: SelectOptionsI | null = null
+  fullName: string = ''
   getNameReservationFailed: boolean = false
   helpMeChooseModalVisible: boolean = false
   incorporateLoginModalVisible: boolean = false
@@ -839,7 +868,9 @@ export class NewRequestModule extends VuexModule {
     // }
   ]
   requestActionOriginal: string = ''
+  restrictedConflicts: Array<string> = []
   showActualInput: boolean = false
+  similarConflicts: Array<string> = []
   stats: StatsI | null = null
   submissionTabNumber: number = 0
   submissionType: SubmissionTypeT | null = null
@@ -1832,6 +1863,7 @@ export class NewRequestModule extends VuexModule {
      "ExistingRequestDisplay",
      "ExistingRequestEdit",
      "LowerContainer",
+     "NameCheck",
      "QuickSearchPending",
      "QuickSearchResults"
      "SearchPending",
@@ -2641,7 +2673,30 @@ export class NewRequestModule extends VuexModule {
   }
 
   @Action
-  async getQuickSearch (cleanedName: {exactMatch: string, synonymMatch: string}) {
+  async parseRestrictedWords (resp: restrictedResponse) {
+    const words = resp.restricted_words_conditions
+    let parsedResp = {
+      restrictedWords: [],
+      conditionalWords: []
+    }
+    // restrictedWords: add any word with cnd_info[..].allow_use = N
+    // conditionalWords: all other words in the list
+    for (let i = 0; i < words.length; i++) {
+      let restricted = false
+      for (let k = 0; k < words[i].cnd_info.length; k++) {
+        if (words[i].cnd_info[k].allow_use === 'N') {
+          restricted = true
+          break
+        }
+      }
+      if (restricted) parsedResp.restrictedWords.push(words[i].word_info.phrase)
+      else parsedResp.conditionalWords.push(words[i].word_info.phrase)
+    }
+    return parsedResp
+  }
+
+  @Action
+  async getQuickSearch (cleanedName: {exactMatch: string, synonymMatch: string, restrictedMatch: string}) {
     try {
       this.mutateDisplayedComponent('QuickSearchPending')
       let encodedAuth = btoa(`${window['quickSearchPublicId']}:${window['quickSearchPublicSecret']}`)
@@ -2654,29 +2709,35 @@ export class NewRequestModule extends VuexModule {
       const exactResp = await axios.get('/exact-match?query=' + cleanedName.exactMatch, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       })
-
       const synonymResp = await axios.get('/requests/synonymbucket/' + cleanedName.synonymMatch + '/*', {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      })
+      const restrictedResp = await axios.get(`/documents:restricted_words?content=${cleanedName.restrictedMatch}`, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       })
 
       const exactNames = await this.parseExactNames(exactResp.data)
-
       // pass in exactNames so that we can check for duplicates
       synonymResp.data.exactNames = exactNames
       const synonymNames = await this.parseSynonymNames(synonymResp.data)
-      this.mutateQuickSearchNames(exactNames.concat(synonymNames))
+      const parsedRestrictedResp = await this.parseRestrictedWords(restrictedResp?.data)
 
-      // check if they skipped
+      this.mutateExactConflicts(exactNames)
+      this.mutateSimilarConflicts(synonymNames)
+      this.mutateRestrictedConflicts(parsedRestrictedResp.restrictedWords)
+      this.mutateConditionalConflicts(parsedRestrictedResp.conditionalWords)
+
+      // check if they already skipped
       if (this.quickSearch) {
-        this.mutateDisplayedComponent('QuickSearchResults')
+        this.mutateDisplayedComponent('NameCheck')
       }
     } catch (err) {
       const msg = await handleApiError(err, 'Could not get quick search')
       // send error to sentry and move on to detailed search
       // (do not show error to user)
       console.error('getQuickSearch() =', msg) // eslint-disable-line no-console
-      this.mutateQuickSearch(false)
-      await this.startAnalyzeName()
+      // this.mutateQuickSearch(false)
+      // await this.startAnalyzeName()
     }
   }
 
@@ -2708,7 +2769,8 @@ export class NewRequestModule extends VuexModule {
         .replace(/¢/g, 'C')
         .replace(/(`|~|!|\||\(|\)|\[|\]|\{|\}|:|"|\^|#|%|\?|,)/g, '')
 
-      await this.getQuickSearch({ 'exactMatch': exactMatchName, 'synonymMatch': synonymsName })
+      await this.getQuickSearch(
+        { 'exactMatch': exactMatchName, 'synonymMatch': synonymsName, 'restrictedMatch': this.name })
     }
   }
 
@@ -2719,8 +2781,9 @@ export class NewRequestModule extends VuexModule {
     let name
     if (this.name) {
       name = sanitizeName(this.name)
+      if (this.designation !== 'None') this.mutateFullName(`${name.trim()} ${this.designation}`.trim())
     }
-    ['entity_type_cd', 'request_action_cd', 'location'].forEach(field => {
+    ['entity_type_cd', 'request_action_cd', 'location', 'designation'].forEach(field => {
       // These are initialized empty. Check to make sure user selected an option for each
       if (!this[field] || this[field] === 'INFO') {
         this.setErrors(field)
@@ -2770,41 +2833,42 @@ export class NewRequestModule extends VuexModule {
       await this.startQuickSearch()
       return
     }
-    let testName = this.name.toUpperCase()
-    testName = removeExcessSpaces(testName)
-    if ((name !== testName) || name.match(/^[\[\]\^*\+-\/\=&\(\)\.,"'#@\!\?;:]/)) {
-      this.mutateDisplayedComponent('AnalyzeCharacters')
-      this.mutateName(name)
-      return
-    }
-    if (this.nameIsSlashed) {
-      this.mutateName(name)
-      this.mutateDisplayedComponent('SendToExamination')
-      return
-    }
-    this.mutateName(name)
-    if (this.location === 'BC' || this.request_action_cd === 'MVE') {
-      if (this.nameIsEnglish && !this.isPersonsName && !this.doNotAnalyzeEntities.includes(this.entity_type_cd)) {
-        if (['NEW', 'MVE', 'DBA', 'CHG'].includes(this.request_action_cd)) {
-          featureFlags.getFlag('disable-analysis')
-            ? this.mutateDisplayedComponent('SendToExamination')
-            : this.getNameAnalysis()
-          return
-        }
-      }
-      this.mutateDisplayedComponent('SendToExamination')
-      return
-    } else {
-      if (['AML', 'CHG', 'DBA', 'MVE', 'NEW', 'REH', 'REN', 'REST'].includes(this.request_action_cd)) {
-        if (this.doNotAnalyzeEntities.includes(this.entity_type_cd)) {
-          this.mutateDisplayedComponent('SendToExamination')
-          return
-        }
-        featureFlags.getFlag('disable-analysis')
-          ? this.mutateDisplayedComponent('SendToExamination')
-          : this.getNameAnalysisXPRO()
-      }
-    }
+    return
+    // let testName = this.name.toUpperCase()
+    // testName = removeExcessSpaces(testName)
+    // if ((name !== testName) || name.match(/^[\[\]\^*\+-\/\=&\(\)\.,"'#@\!\?;:]/)) {
+    //   this.mutateDisplayedComponent('AnalyzeCharacters')
+    //   this.mutateName(name)
+    //   return
+    // }
+    // if (this.nameIsSlashed) {
+    //   this.mutateName(name)
+    //   this.mutateDisplayedComponent('SendToExamination')
+    //   return
+    // }
+    // this.mutateName(name)
+    // if (this.location === 'BC' || this.request_action_cd === 'MVE') {
+    //   if (this.nameIsEnglish && !this.isPersonsName && !this.doNotAnalyzeEntities.includes(this.entity_type_cd)) {
+    //     if (['NEW', 'MVE', 'DBA', 'CHG'].includes(this.request_action_cd)) {
+    //       featureFlags.getFlag('disable-analysis')
+    //         ? this.mutateDisplayedComponent('SendToExamination')
+    //         : this.getNameAnalysis()
+    //       return
+    //     }
+    //   }
+    //   this.mutateDisplayedComponent('SendToExamination')
+    //   return
+    // } else {
+    //   if (['AML', 'CHG', 'DBA', 'MVE', 'NEW', 'REH', 'REN', 'REST'].includes(this.request_action_cd)) {
+    //     if (this.doNotAnalyzeEntities.includes(this.entity_type_cd)) {
+    //       this.mutateDisplayedComponent('SendToExamination')
+    //       return
+    //     }
+    //     featureFlags.getFlag('disable-analysis')
+    //       ? this.mutateDisplayedComponent('SendToExamination')
+    //       : this.getNameAnalysisXPRO()
+    //   }
+    // }
   }
 
   @Action
@@ -3365,8 +3429,43 @@ export class NewRequestModule extends VuexModule {
   }
 
   @Mutation
+  mutateExactConflicts (value: Array<string>) {
+    this.exactConflicts = value
+  }
+
+  @Mutation
+  mutateSimilarConflicts (value: Array<string>) {
+    this.similarConflicts = value
+  }
+
+  @Mutation
+  mutateRestrictedConflicts (value: Array<string>) {
+    this.restrictedConflicts = value
+  }
+
+  @Mutation
+  mutateConditionalConflicts (value: Array<string>) {
+    this.conditionalConflicts = value
+  }
+
+  @Mutation
   mutateAnalyzePending (value: boolean) {
     this.analyzePending = value
+  }
+
+  @Mutation
+  mutateDesignation (value: string) {
+    this.designation = value
+  }
+
+  @Mutation
+  mutateFullName (value: string) {
+    this.fullName = value
+  }
+
+  @Mutation
+  mutateDesignationOptions (value: string[]) {
+    this.designationOptions = value
   }
 }
 

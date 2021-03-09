@@ -12,7 +12,7 @@
           </span>
           <span class="link-std-sans-ul" v-else>
             <v-icon class="mr-n1 mini-back-arrow">mdi-chevron-left</v-icon>
-            {{ editMode ? 'Return' : 'Start Over' }}
+            {{ editMode ? 'Return' : 'Back' }}
           </span>
         </button>
         <countdown-timer :timerName="timerName" colorString="#1669bb" bgColorString="#efefef" />

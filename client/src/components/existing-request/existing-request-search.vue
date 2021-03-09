@@ -27,7 +27,7 @@
 
       <!-- Existing Request Search -->
       <v-col cols="9">
-        <v-form v-model="isValid" lazy-validation @submit="handleSubmit()" class="pa-10" ref="existing-nr-form">
+        <v-form v-model="isValid" lazy-validation disabled @submit="handleSubmit()" class="pa-10" ref="existing-nr-form">
           <v-row no-gutters>
             <!-- FIRST LINE -->
             <v-col cols="1" class="max-width"></v-col>
@@ -96,7 +96,7 @@
           <!-- FIFTH LINE -->
           <v-row class="mt-9" no-gutters>
             <v-col class="text-center">
-              <v-btn id="retrieve-name-btn" @click="handleSubmit()">Retrieve Name Request</v-btn>
+              <v-btn id="retrieve-name-btn" disabled @click="handleSubmit()">Retrieve Name Request</v-btn>
             </v-col>
           </v-row>
         </v-form>

@@ -135,7 +135,7 @@
           </template>
         </v-select>
       </v-col>
-      <v-col :cols="isXproMras ? 8 : 12" :class="{ 'pl-3': (isXproMras && !isFederal) }">
+      <v-col cols="8" :class="{ 'pl-3': (isXproMras && !isFederal), 'pr-3': !isXproMras}">
         <NameInput v-if="!isFederal"
                    :class="inputCompClass"
                    :is-mras-search="(isXproMras && !noCorpNum)"
@@ -144,6 +144,17 @@
                    @emit-corp-num-validity="corpNumValid = $event"/>
         <p v-else class="pl-3 mt-n2 text-body-2">Federally incorporated businesses do not need a Name Request. You may
           register  your extraprovincial business immediately using its existing name at Corporate Online.</p>
+      </v-col>
+      <v-col v-if="!isXproMras" cols="4">
+        <v-select :error-messages="errors.includes('designation') ? 'Please select a designation' : ''"
+                  :items="designationOptions"
+                  label="Select a Designation"
+                  :readonly="!entity_type_cd"
+                  :class="!entity_type_cd ? 'disabled-custom' : ''"
+                  @change="clearErrors()"
+                  filled
+                  v-model="designation">
+        </v-select>
       </v-col>
     </v-row>
 
@@ -243,7 +254,8 @@
 
     <div v-if="!isFederal" class="mt-6 text-center">
       <v-btn id="search-name-btn" :disabled="!corpNumValid" @click="handleSubmit()">
-        {{ isXproMras ? 'Search' : 'Search Name'}}
+        <v-icon left color="white">mdi-magnify</v-icon>
+        {{ isXproMras ? 'Search' : 'Check This Name'}}
       </v-btn>
     </div>
     <div v-else class="mt-6 text-center">
@@ -299,6 +311,12 @@ export default class NewSearch extends Vue {
       }
     }
   }
+  @Watch('entity_type_cd')
+  watchEntityTypeCd (newVal) {
+    if (['FR', 'GP'].includes(newVal)) return newReqModule.mutateDesignationOptions(['Co.', 'Company', 'None'])
+    else if (this.entity_type_cd) return newReqModule.mutateDesignationOptions(newReqModule.entityDesignations)
+    else return newReqModule.mutateDesignationOptions([])
+  }
   private request_action_enum = [
     'NEW',
     'MVE',
@@ -314,6 +332,15 @@ export default class NewSearch extends Vue {
   }
   get displayedComponent () {
     return newReqModule.displayedComponent
+  }
+  get designation () {
+    return newReqModule.designation
+  }
+  set designation (value: string) {
+    newReqModule.mutateDesignation(value)
+  }
+  get designationOptions () {
+    return newReqModule.designationOptions
   }
   get entity_type_cd () {
     if (this.isConversion) {
@@ -471,8 +498,10 @@ export default class NewSearch extends Vue {
   pointer-events: none;
 }
 #search-name-btn {
-  min-height: 45px !important;
-  padding: 0 50px !important;
+  font-size: 1rem !important;
+  height: 2.813rem !important;
+  padding: 0 3.125rem !important;
+  width: 20rem;
 }
 #goto-corporate-btn {
   min-height: 45px !important;
