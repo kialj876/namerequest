@@ -1,9 +1,9 @@
 <template>
-  <v-col id="quick-search-names" class="pt-3">
-      <v-row no-gutters class="quickSearchNames" v-for="name of namesList" :key="name.name">
-        <b v-if="name.type==='exact'">{{name.name}}</b>
-        <span v-else>{{name.name}}</span>
-      </v-row>
+  <v-col id="quick-search-names" class="pl-2 py-2 rounded">
+    <v-row no-gutters class="quickSearchNames" v-for="name of namesList" :key="name.name">
+      <b v-if="name.type==='exact'">{{name.name}}</b>
+      <span v-else>{{name.name}}</span>
+    </v-row>
   </v-col>
 </template>
 
@@ -24,7 +24,7 @@ export default class QuickSearchNames extends Vue {
 <style scoped lang="scss">
 @import '@/assets/scss/theme.scss';
 #quick-search-names {
-    max-height: 10rem;
+    max-height: 10.5rem;
     background-color: $gray1;
     display: block;
     overflow: auto;
