@@ -2833,6 +2833,7 @@ export class NewRequestModule extends VuexModule {
       await this.startQuickSearch()
       return
     }
+    this.mutateDisplayedComponent('SendToExamination')
     return
     // let testName = this.name.toUpperCase()
     // testName = removeExcessSpaces(testName)

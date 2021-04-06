@@ -22,10 +22,6 @@
           <p :class="actionConfig.class">{{ actionConfig.subText }}</p>
         </v-col>
       </v-row>
-
-      <v-row class="text-center justify-center mb-n2">
-        <ReserveSubmit />
-      </v-row>
     </template>
   </MainContainer>
 </template>

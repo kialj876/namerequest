@@ -9,7 +9,7 @@
     </v-row>
     <v-row no-gutters class="pl-8 pt-6">
       <v-col cols="6">
-        <NameInput/>
+        <NameInput :showHint="true"/>
       </v-col>
       <v-col cols="3" class="pl-3">
         <v-select :items="designationOptions"
@@ -77,7 +77,7 @@
         </v-tabs>
         <v-tabs-items class="rounded-b tab-items pa-3 pb-0" v-model="checks">
           <v-tab-item value="structure-check">
-            <v-row no-gutters class="pa-10 pl-12 pb-7 name-check-info-text">
+            <v-row no-gutters class="pa-10 pl-12 pb-7 name-check-info-text bottom-border">
               <v-col cols="auto">
                 <v-icon>mdi-information-outline</v-icon>
               </v-col>
@@ -93,19 +93,46 @@
                 <v-icon>mdi-information-outline</v-icon>
               </v-col>
               <v-col class="pl-2">
-                <span>{{ tabInfoText }}</span>
+                <span v-html="tabInfoText">{{ tabInfoText }}</span>
               </v-col>
             </v-row>
             <NameCheckConflicts :items="conflictItems" />
           </v-tab-item>
         </v-tabs-items>
       </v-container>
-      <v-row no-gutters justify="end" class="pa-10 pt-7">
-        <v-btn id="name-check-submit-btn"
-              @click="submit()">
-          Submit this Name for Review
-          <v-icon>mdi-chevron-right</v-icon>
-        </v-btn>
+      <v-row no-gutters class="px-16 pt-7 name-check-info-text-no-border">
+        <v-col cols="auto" class="pl-10">
+          <v-icon>mdi-information-outline</v-icon>
+        </v-col>
+        <v-col class="pl-2 pr-10">
+          <span>If you wish to proceed with your name choice at any
+            point you can submit your name for review. You will be able
+            to enter up to three name choices as part of the name request
+            submission process
+          </span>
+        </v-col>
+      </v-row>
+      <v-row no-gutters class="pa-10 pt-7">
+        <v-col align-self="start" cols="4">
+          <v-btn @click="back()" class="outlined" outlined>
+            Start Over
+          </v-btn>
+        </v-col>
+        <v-col cols="8">
+          <v-row no-gutters justify="end">
+            <v-col cols="auto">
+              <v-btn @click="back()" class="outlined" outlined>
+                Back
+              </v-btn>
+            </v-col>
+            <v-col cols="auto" class="pl-3">
+              <v-btn id="name-check-submit-btn" @click="submit()">
+                Submit this Name for Review
+                <v-icon>mdi-chevron-right</v-icon>
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-col>
       </v-row>
     </v-container>
   </v-container>
@@ -140,6 +167,9 @@ export default class NameCheck extends Vue {
 
   mounted () {
     this.originalName = this.searchName?.toUpperCase()
+    if (this.numCondConflicts + this.numRestConflicts === 0 && this.numExactConflicts + this.numSimConflicts > 0) {
+      this.checks = 'conflicts-check'
+    }
   }
 
   @Watch('conditionalConflicts')
@@ -244,6 +274,7 @@ export default class NameCheck extends Vue {
         iconColor: 'red darken-2',
         problem: 'There is an existing BC Corporations using the <b>exact name:</b>',
         words: null,
+        expandExtraInfo: false,
         expandedExtraInfo: 'View tips on how to create a unique name',
         expandedInfo1: 'Exact name in use. A name will not be approved if there is an existing business using the exact same name. Consider revising your name unless you can obtain consent to use this name.',
         expandedInfo2: null,
@@ -261,9 +292,10 @@ export default class NameCheck extends Vue {
         iconColor: 'orange darken-2',
         problem: 'There are existing BC Corporations using the <b>same or similar words</b>:',
         words: null,
+        expandExtraInfo: false,
         expandedExtraInfo: 'View tips on how to create a unique name',
-        expandedInfo1: 'If you see a name similar to your choice, check the business category. If the existing name is in the same business category consider revising your name unless you can obtain consent to use your name.',
-        expandedInfo2: 'If the name is in a different business category your name may be approved. However, if you want a unique name, consider revising your name. *The above list of names is not exhaustive and does not guarantee your name will be approved for use.',
+        expandedInfo1: 'If you see a name similar to your choice, check the business category. If the existing name is in the <b>same</b> business category <b>consider revising your name</b> unless you can obtain consent to use your name.',
+        expandedInfo2: 'If the name is in a <b>different</b> business category <b>your name may be approved</b>. However, if you want a unique name, consider revising your name. <i>*The above list of names is not exhaustive and does not guarantee your name will be approved for use.</i>',
         expandedList: this.similarConflicts,
         expandLabel: {
           closed: 'view',
@@ -360,8 +392,11 @@ export default class NameCheck extends Vue {
             'above and recheck it. Read helpful tips below on how to resolve each ' +
             'issue.'
     } else {
-      return 'Your name will not be approved if an exact match or a very similar name is already in use, unless you can obtain consent. For the best chance of having your name approved, review the existing names below to insure that your name is unique.'
+      return 'Your name will <b>not</b> be approved if an exact match or a very similar name is already in use, unless you can obtain consent. For the best chance of having your name approved, review the existing names below to insure that your name is unique.'
     }
+  }
+  back () {
+    newReqModule.mutateDisplayedComponent('tabs')
   }
   async checkAgain () {
     newReqModule.mutateQuickSearch(true)
@@ -369,6 +404,7 @@ export default class NameCheck extends Vue {
   }
   async submit () {
     console.log('submitted') // eslint-disable-line no-console
+    newReqModule.mutateDisplayedComponent('SendToExamination')
   }
 }
 </script>
@@ -456,6 +492,11 @@ export default class NameCheck extends Vue {
   font-size: 0.875rem;
   line-height: 1.375rem;
   border-bottom: thin solid rgba(0, 0, 0, 0.12);
+}
+.name-check-info-text-no-border {
+  color: $gray7;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
 }
 .upper-border {
   border-top-left-radius: 4px;

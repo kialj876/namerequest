@@ -12,6 +12,8 @@
                     :label="isReadOnly ? '' : nameLabel"
                     :class="{ 'read-only-mode': isReadOnly }"
                     :disabled="isReadOnly"
+                    :hint="showHint ? 'You can edit your name here and check it again' : ''"
+                    persistent-hint
                     v-model="searchValue">
       </v-text-field>
     </v-col>
@@ -33,6 +35,7 @@ export default class NameInput extends Vue {
   @Prop({ default: false }) isSearchAgain: boolean
   @Prop({ default: false }) isMrasSearch: boolean
   @Prop({ default: false }) isReadOnly: boolean
+  @Prop({ default: false }) showHint: boolean
 
   /** The array of validation rules for the MRAS corp num. */
   private get mrasRules (): Array<Function> {

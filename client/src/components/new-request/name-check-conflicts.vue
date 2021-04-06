@@ -63,13 +63,38 @@
           <v-row v-if="item.expandedList" no-gutters class="px-15">
             <QuickSearchNames :namesList="item.expandedList"/>
           </v-row>
-          <v-row v-if="item.expandedInfo1" no-gutters class="px-15 pt-7 pb-7 name-check-info-text">
+          <v-row v-if="item.expandedInfo1" no-gutters :class="item.expandedList ? 'pt-7' : ''" class="px-15 pb-7 name-check-info-text">
             <v-col cols="auto">
               <v-icon>mdi-information-outline</v-icon>
             </v-col>
             <v-col class="pl-2" style="max-width: 50rem">
               <v-row no-gutters>
-                <span>{{ item.expandedInfo1 }}</span>
+                <span v-html="item.expandedInfo1">{{ item.expandedInfo1 }}</span>
+              </v-row>
+              <v-row v-if="item.expandedInfo2" no-gutters class="pt-7">
+                <span v-html="item.expandedInfo2">{{ item.expandedInfo2 }}</span>
+              </v-row>
+              <v-row v-if="item.expandedExtraInfo" no-gutters class="pt-3">
+                <v-btn :ripple="false" class="pa-0 tips-btn outlined" @click="item.expandExtraInfo = !item.expandExtraInfo">
+                  {{ item.expandedExtraInfo }}
+                  <v-icon v-if="!item.expandExtraInfo" right>mdi-chevron-down</v-icon>
+                  <v-icon v-else right>mdi-chevron-up</v-icon>
+                </v-btn>
+              </v-row>
+              <v-row v-if="item.expandExtraInfo" no-gutters class="pt-3">
+                <v-col>
+                  <v-row no-gutters>
+                    <b>Use words that will set your name apart, such as:</b>
+                  </v-row>
+                  <v-row no-gutters>
+                    <ul>
+                      <li>a person's full Name</li>
+                      <li>a geographical location</li>
+                      <li>a coined, made-up word, or</li>
+                      <li>an acronym</li>
+                    </ul>
+                  </v-row>
+                </v-col>
               </v-row>
             </v-col>
           </v-row>
@@ -116,6 +141,13 @@ export default class NameCheckConflicts extends Vue {
     { text: 'Words', value: 'words' },
     { text: '', value: 'data-table-expand' }
   ]
+  mounted () {
+    if (this.items?.length > 0) {
+      if (this.items[0].expandedList?.length > 0) {
+        this.expanded.push(this.items[0])
+      }
+    }
+  }
 }
 </script>
 
@@ -136,5 +168,12 @@ export default class NameCheckConflicts extends Vue {
   color: $gray7;
   font-size: 1rem;
   line-height: 1.5rem;
+}
+.v-btn.tips-btn {
+  box-shadow: none !important;
+}
+.v-btn.tips-btn:before {
+  box-shadow: none !important;
+  background-color: transparent !important;
 }
 </style>
